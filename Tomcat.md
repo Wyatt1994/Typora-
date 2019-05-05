@@ -1,3 +1,19 @@
+#### 配置文件结构
+
+![img](file:///C:\Users\ASUS\AppData\Roaming\Tencent\Users\739868197\TIM\WinTemp\RichOle\U]G{6PDP~PDUMI{QT`ZZ[6W.png)
+
+Server:包含多个service服务
+
+serivce:包含一个或多个connector和container
+
+##### Executor
+
+每一个 `service`都会维护一个共享的线程池，tomcat监听socket端口，当接收到客户端请求后，会创建请求处理对象，并交由线程池处理，由此并发处理客户端请求。
+
+##### Listener
+
+在 `server`标签下，还有一个标签 `listener`，它的表示监听器，它会捕获存在节点的事件(比如在上面的配置中就配置在server标签，则表示这个listener存在server节点上)，并根据**具体实现**执行相对应的操作。
+
 #### Tomcat容器结构
 
 tomcat，核心就是Catalina，也就是servlet容器。
@@ -12,9 +28,40 @@ Catalina主要分为两个模块：
 
 #### 连接器Connector
 
+**httpConnector**：负责获取socket。传统的connector中调用processor.process(socket)是同步的，即必须等待返回才可继续执行。由于httpprocessor实现了Runable接口，因此可实现多线程调用。同时，connector获取到请求后通过调用notifyAll将处于wait状态的proccessor唤醒。
+
+**httpProcessor:**读取套接字的输入流，解析http请求。其中的process方法解析http请求，并调用servlet容器的invoke方法。
+
+传统的httpconnector实例只有一个httpProcessor实例可用，因此每次只能处理一个http请求。在tomcat连接器中，维护了一个**httpProcessor对象池**（**栈结构**），分别运行在不同的线程中，实现同时处理多个http请求。若达到最大，则会关闭套接字，不做处理。
+
+![1555940860708](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1555940860708.png)
+
+
+
+
+
 
 
 #### 容器Container
+
+| 标签    | 描述                                                         |
+| ------- | ------------------------------------------------------------ |
+| Engine  | 表示Servlet引擎，作为最高级的容器，Engine是获取目标容器的入口 |
+| Host    | Servlet引擎中的虚拟机,多域名也是基于host实现的               |
+| Context | 在Servlet规范中，一个Context，表示一个独立的 `Web`应用       |
+| Wrapper | 表示web**应用中**定义的 `Servlet`                            |
+
+![1556094550241](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556094550241.png)
+
+也就是 `engine`和它**包含的**所有的标签代表的类， `Container`可以添加或者包含子容器，所以 `service`类中仅持有了 `engine`。
+
+每一个 `Container`对象都会有一个对应的 `StandardValve`, `Pipeline`接口会维护一条 `Value`的**职责链**，将请求依次传递到每一级的容器中处理。
+
+![1556096177055](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556096177055.png)
+
+
+
+根据解析出的url作为构造参数获得一个URLClassloader实例，然后调用loadClass()方法加载对应的servlet，并实例化调用service方法。
 
 
 
@@ -129,3 +176,52 @@ tomcat/logs。其中有一个.out文件和.log文件。catalina.out文件记录�
 netstat -n | awk '/^tcp/ {++S[$NF]} END {for(a in S) print a, S[a]}'
 
 6.查过最大连接数，默认为200个，则需要修改配置文件，增加最大连接数。
+
+#### 类加载器的层次结构
+
+![1556008058953](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556008058953.png)
+
+##### Tomcat自定义类加载器的原因：
+
+1.在载入类中指定某些规则（例如只允许servlet类访问特定路径下的类，则需要从指定仓库中进行搜索和加载）。2.缓存已经载入的类（同时，webapploader类通过实现runable接口启动新线程不断检查加载器时间戳，实现重载）。
+
+3.实现类的预加载，便于使用
+
+##### webappclassloader载入类的规则：
+
+![1556008258153](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556008258153.png)
+
+#### Tomcat的Session管理
+
+![1556008339024](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556008339024.png)
+
+#### 单例Servlet的线程安全问题
+
+![1556094430425](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556094430425.png)
+
+![1556094438921](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556094438921.png)
+
+##### tomcat的server实例监听8085端口用于接收开启关闭命令
+
+#### Tomcat启动
+
+tomcat启动会用到两个类：Catalina和Bootstrap类。Catalina用于启动或者关闭Server对象，并负责解析tomcat配置文件。Bootstrap属于程序入口点，负责创建Catalina实例，并调用process()方法，启动tomcat应用。
+
+![1556197897034](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556197897034.png)
+
+![1556197909829](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556197909829.png)
+
+![1556198105351](C:\Users\ASUS\AppData\Roaming\Typora\typora-user-images\1556198105351.png)
+
+
+
+在main()方法中还会创建3个类加载器，防止应用程序的类越权访问外部类。分别是**commonLoader,catalinaLoader和sharedLoader**
+
+#### Tomcat类加载层次结构
+
+CommonClassLoader能加载的类都可以被CatalinaClassLoader和SharedClassLoader使用，而**CatalinaClassLoader和SharedClassLoader**自己能加载的类则与对象相互隔离。
+
+**WebAppClassLoader**可以使用SharedClassLoader加载到的类，但各个WebAppClassLoader实例之间相互隔离，而**JasperLoader**的加载范围仅仅是这个Jsp文件所编译出来的那一个Class，它出现的目的就是为了被丢弃：当服务器监测到Jsp文件被修改时，会替换掉目前的JasperLoader的实例，并通过再建立一个新的Jsp类加载器来实现Jsp文件的HotSwap功能。
+
+![img](https://img-blog.csdn.net/20170226110723953)
+

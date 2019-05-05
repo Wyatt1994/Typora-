@@ -516,6 +516,16 @@ private final boolean parkAndCheckInterrupt() {
 
 https://mp.weixin.qq.com/s？__biz=MzUzMTA2NTU2Ng==&mid=2247484040&idx=1&sn=60633c2dc4814b26dc4b39bb2bb5d4dd&chksm=fa497d39cd3ef42f539cd0576c1a3575ee27307048248571e954f0ff21a5a9b1ddfab522c834&scene=21#wechat_redirect
 
+读锁本质上是个共享锁。
+
+但读锁对锁的获取做了很多优化，比如使用  firstReader  和 cachedHoldCounter 最**第一个读锁线程和最后一个读锁线程做优化，优化点主要在释放的时候对计数器的获取。**
+
+同时，如果在获取读锁的过程中写锁被持有了，JUC 并没有让所有线程痴痴的等待，而是判断入如果获取读锁的线程是正巧是持有写锁的线程，那么当前线程就可以降级获取写锁，否则就会死锁了（**为什么死锁，当持有写锁的线程想获取读锁，但却无法降级，进入了等待队列，肯定会死锁**）。
+
+还有一点就是性能上的优化，如果先释放写锁，再获取读锁，势必引起锁的争抢和线程上下文切换，影响性能。
+
+
+
 读写锁ReentrantReadWriteLock实现**接口ReadWriteLock**，该接口维护了一对相关的锁，一个用于只读操作，另一个用于写入操作。只要没有 writer，读取锁可以由多个 reader 线程同时保持。写入锁是独占的。
 
 ```

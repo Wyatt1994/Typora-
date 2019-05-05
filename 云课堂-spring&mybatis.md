@@ -33,9 +33,7 @@ SqlSessionFactorybean
 https://blog.csdn.net/qq_21441857/article/details/83015543
 
 mapper接口的定义在bean加载阶段会被替换成**MapperFactoryBean类型**，在spring容器初始化的时候会给我们生成**MapperFactoryBean类型的对象**，在该对象生成的过程中调用afterPropertiesSet()方法，为我们生成了一个
-MapperProxyFactory类型的对象存放于Configuration里的MapperRegistry对象中，同时**解析了mapper接口对应的xml文件，把每一个方法解析成一个MappedStatement对象**，存放于Configuration里的mappedStatements
-
-###### 这个Map集合中。 
+MapperProxyFactory类型的对象存放于Configuration里的MapperRegistry对象中，同时**解析了mapper接口对应的xml文件，把每一个方法解析成一个MappedStatement对象**，存放于Configuration里的mappedStatements这个Map集合中。 
 
 
 
